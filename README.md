@@ -136,5 +136,5 @@ This project is licensed under the **MIT License** — you’re free to use, mod
 
 ---
 
-**Created with ❤️ by [Jeff Cechinel](https://github.com/jeffcechinel)**  
+**Created with ❤️ by [Jeff Cechinel](https://github.com/strognoff)**  
 Helping you **see, understand, and grow your wealth — month by month.**
