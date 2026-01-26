@@ -98,6 +98,9 @@ From here, you can start entering balances, view how your net worth changes each
 Tracking your net worth offers a clear overview of your financial health and long-term progress.  
 Instead of using spreadsheets, this app provides **insightful visuals and trends** — helping you balance savings, investments, and spending more effectively.
 
+<img width="1092" height="822" alt="image" src="https://github.com/user-attachments/assets/b2c5c34c-05e6-4078-913b-3c4c092a9a6b" />
+
+
 ---
 
 ## 💡 Potential Future Enhancements
