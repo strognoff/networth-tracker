@@ -115,7 +115,7 @@ Instead of using spreadsheets, this app provides **insightful visuals and trends
 
 ## 🧑‍💻 Contributing
 
-Contributions are welcome! Please open issues or submit pull requests on [GitHub](https://github.com/jeffcechinel/networth-tracker).
+Contributions are welcome! Please open issues or submit pull requests on [GitHub](https://github.com/strognoff/networth-tracker).
 
 To contribute:
 
