@@ -67,7 +67,11 @@ const NetWorthDisplay: React.FC<Props> = ({
     }));
 
   // 🔮 Projection — simple average trend extrapolation
-  let projectedData: { month: string; monthLabel: string; projectedTotal: number }[] = [];
+  let projectedData: {
+    month: string;
+    monthLabel: string;
+    projectedTotal: number;
+  }[] = [];
   if (realChartData.length >= 2) {
     const lastFive = realChartData.slice(-5);
     const differences = lastFive
@@ -202,8 +206,14 @@ const NetWorthDisplay: React.FC<Props> = ({
           </h3>
           <ResponsiveContainer width="100%" height={300}>
             <BarChart data={combinedData}>
-              <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.1)" />
-              <XAxis dataKey="monthLabel" tick={{ fill: "#CBD5E1", fontSize: 10 }} />
+              <CartesianGrid
+                strokeDasharray="3 3"
+                stroke="rgba(255,255,255,0.1)"
+              />
+              <XAxis
+                dataKey="monthLabel"
+                tick={{ fill: "#CBD5E1", fontSize: 10 }}
+              />
               <YAxis tick={{ fill: "#CBD5E1", fontSize: 10 }} />
               <Tooltip
                 contentStyle={{
@@ -223,7 +233,42 @@ const NetWorthDisplay: React.FC<Props> = ({
                   <stop offset="100%" stopColor="#1E3A8A" />
                 </linearGradient>
               </defs>
-              <Bar dataKey="total" fill="url(#chartGradient)" radius={[8, 8, 0, 0]} />
+
+              <Bar
+                dataKey="total"
+                fill="url(#chartGradient)"
+                radius={[8, 8, 0, 0]}
+                label={(props: any) => {
+                  const { x, y, width, index, value } = props;
+
+                  // Only label REAL bars (skip projected section which has total === null)
+                  if (index >= realChartData.length) return null;
+                  if (index === 0) return null; // no previous bar to compare
+
+                  const prevTotal = realChartData[index - 1]?.total;
+                  if (prevTotal === 0 || prevTotal === undefined) return null;
+
+                  const pct = ((value - prevTotal) / Math.abs(prevTotal)) * 100;
+                  if (!Number.isFinite(pct)) return null;
+
+                  const sign = pct >= 0 ? "+" : "";
+                  const text = `${sign}${pct.toFixed(1)}%`;
+
+                  return (
+                    <text
+                      x={x + width / 2}
+                      y={y - 8}
+                      textAnchor="middle"
+                      fill={pct >= 0 ? "#34D399" : "#F87171"}
+                      fontSize={12}
+                      fontWeight={700}
+                    >
+                      {text}
+                    </text>
+                  );
+                }}
+              />
+
               <Line
                 type="monotone"
                 dataKey="total"
@@ -280,7 +325,9 @@ const NetWorthDisplay: React.FC<Props> = ({
                   Year-end: R${yearEndTotal.toLocaleString("pt-BR")}
                 </p>
                 <span
-                  className={`ml-3 ${isExpanded ? "rotate-180" : ""} transition-transform`}
+                  className={`ml-3 ${
+                    isExpanded ? "rotate-180" : ""
+                  } transition-transform`}
                 >
                   ▼
                 </span>
@@ -372,8 +419,14 @@ const NetWorthDisplay: React.FC<Props> = ({
 
         <ResponsiveContainer width="100%" height={300}>
           <LineChart data={perAccountData}>
-            <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.1)" />
-            <XAxis dataKey="monthLabel" tick={{ fill: "#CBD5E1", fontSize: 10 }} />
+            <CartesianGrid
+              strokeDasharray="3 3"
+              stroke="rgba(255,255,255,0.1)"
+            />
+            <XAxis
+              dataKey="monthLabel"
+              tick={{ fill: "#CBD5E1", fontSize: 10 }}
+            />
             <YAxis tick={{ fill: "#CBD5E1", fontSize: 10 }} />
             <Tooltip
               contentStyle={{
@@ -398,6 +451,7 @@ const NetWorthDisplay: React.FC<Props> = ({
           </LineChart>
         </ResponsiveContainer>
       </div>
+
       {/* 💾 DB Export / Import */}
       <div className="mt-10 p-6 bg-slate-800/70 border border-slate-600 rounded-2xl">
         <h3 className="text-indigo-300 font-bold mb-3">Database Management</h3>
