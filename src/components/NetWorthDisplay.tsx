@@ -69,19 +69,38 @@ const NetWorthDisplay: React.FC<Props> = ({
       ? ((grandTotal - previousTotal) / Math.abs(previousTotal)) * 100
       : null;
 
-  // 📊 Real data — totals per month
+  // 🎨 Get unique accounts for color mapping
+  const accounts = Array.from(new Set(entries.map((e) => e.account))).sort();
+  const colorPalette = [
+    "#A78BFA", "#60A5FA", "#34D399", "#FBBF24", 
+    "#F87171", "#F472B6", "#FB923C", "#4ADE80",
+    "#818CF8", "#2DD4BF", "#FCD34D", "#FDA4AF"
+  ];
+
+  // 📊 Real data — totals per month with account breakdown
   const realChartData = [...new Set(entries.map((e) => e.month))]
     .sort()
-    .map((month) => ({
-      month,
-      monthLabel: new Date(month + "-01").toLocaleDateString("default", {
-        month: "short",
-        year: "2-digit",
-      }),
-      total: entries
-        .filter((e) => e.month === month)
-        .reduce((sum, e) => sum + e.amount, 0),
-    }));
+    .map((month) => {
+      const monthData: Record<string, any> = {
+        month,
+        monthLabel: new Date(month + "-01").toLocaleDateString("default", {
+          month: "short",
+          year: "2-digit",
+        }),
+        total: 0,
+      };
+      
+      // Add each account's amount for this month
+      accounts.forEach((account) => {
+        const amount = entries
+          .filter((e) => e.month === month && e.account === account)
+          .reduce((sum, e) => sum + e.amount, 0);
+        monthData[account] = amount;
+        monthData.total += amount;
+      });
+      
+      return monthData;
+    });
 
   // 🔮 Projection — simple average trend extrapolation
   let projectedData: {
@@ -146,7 +165,7 @@ const NetWorthDisplay: React.FC<Props> = ({
     const buffer = await file.arrayBuffer();
 
     const initSqlJs = (await import("sql.js")).default;
-    const SQL = await initSqlJs({ locateFile: (f) => `/sql-wasm.wasm` });
+    const SQL = await initSqlJs({ locateFile: (_f) => `/sql-wasm.wasm` });
     const newDb = new SQL.Database(new Uint8Array(buffer));
 
     if (onDatabaseImport) onDatabaseImport(newDb);
@@ -154,16 +173,6 @@ const NetWorthDisplay: React.FC<Props> = ({
   };
 
   // 🎨 Per-account chart prep
-  const colorPalette = [
-    "#A78BFA",
-    "#60A5FA",
-    "#34D399",
-    "#FBBF24",
-    "#F87171",
-    "#F472B6",
-  ];
-
-  const accounts = Array.from(new Set(entries.map((e) => e.account))).sort();
   const allMonths = [...new Set(entries.map((e) => e.month))].sort();
 
   const perAccountData = allMonths.map((month) => {
@@ -263,6 +272,20 @@ const NetWorthDisplay: React.FC<Props> = ({
           <h3 className="text-indigo-300 font-bold text-lg mb-4">
             Monthly Net Worth Trend
           </h3>
+          
+          {/* Legend */}
+          <div className="flex flex-wrap gap-3 mb-4">
+            {accounts.map((account, idx) => (
+              <div key={account} className="flex items-center gap-2">
+                <div
+                  className="w-4 h-4 rounded"
+                  style={{ backgroundColor: colorPalette[idx % colorPalette.length] }}
+                />
+                <span className="text-sm text-slate-300">{account}</span>
+              </div>
+            ))}
+          </div>
+
           <ResponsiveContainer width="100%" height={300}>
             <BarChart data={combinedData}>
               <CartesianGrid
@@ -286,47 +309,51 @@ const NetWorthDisplay: React.FC<Props> = ({
                   `R$${(v ?? 0).toLocaleString("pt-BR")}`
                 }
               />
-              <defs>
-                <linearGradient id="chartGradient" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="0%" stopColor="#60A5FA" />
-                  <stop offset="100%" stopColor="#1E3A8A" />
-                </linearGradient>
-              </defs>
 
-              <Bar
-                dataKey="total"
-                fill="url(#chartGradient)"
-                radius={[8, 8, 0, 0]}
-                label={(props: any) => {
-                  const { x, y, width, index, value } = props;
+              {/* Stacked bars for each account */}
+              {accounts.map((account, idx) => (
+                <Bar
+                  key={account}
+                  dataKey={account}
+                  stackId="networth"
+                  fill={colorPalette[idx % colorPalette.length]}
+                  radius={idx === accounts.length - 1 ? [8, 8, 0, 0] : [0, 0, 0, 0]}
+                  label={
+                    idx === accounts.length - 1
+                      ? (props: any) => {
+                          const { x, y, width, index } = props;
 
-                  // Only label REAL bars (skip projected section which has total === null)
-                  if (index >= realChartData.length) return null;
-                  if (index === 0) return null; // no previous bar to compare
+                          // Only label REAL bars (skip projected section)
+                          if (index >= realChartData.length) return null;
+                          if (index === 0) return null; // no previous bar to compare
 
-                  const prevTotal = realChartData[index - 1]?.total;
-                  if (prevTotal === 0 || prevTotal === undefined) return null;
+                          const currentTotal = realChartData[index]?.total;
+                          const prevTotal = realChartData[index - 1]?.total;
+                          if (prevTotal === 0 || prevTotal === undefined) return null;
 
-                  const pct = ((value - prevTotal) / Math.abs(prevTotal)) * 100;
-                  if (!Number.isFinite(pct)) return null;
+                          const pct = ((currentTotal - prevTotal) / Math.abs(prevTotal)) * 100;
+                          if (!Number.isFinite(pct)) return null;
 
-                  const sign = pct >= 0 ? "+" : "";
-                  const text = `${sign}${pct.toFixed(1)}%`;
+                          const sign = pct >= 0 ? "+" : "";
+                          const text = `${sign}${pct.toFixed(1)}%`;
 
-                  return (
-                    <text
-                      x={x + width / 2}
-                      y={y - 8}
-                      textAnchor="middle"
-                      fill={pct >= 0 ? "#34D399" : "#F87171"}
-                      fontSize={12}
-                      fontWeight={700}
-                    >
-                      {text}
-                    </text>
-                  );
-                }}
-              />
+                          return (
+                            <text
+                              x={x + width / 2}
+                              y={y - 8}
+                              textAnchor="middle"
+                              fill={pct >= 0 ? "#34D399" : "#F87171"}
+                              fontSize={12}
+                              fontWeight={700}
+                            >
+                              {text}
+                            </text>
+                          );
+                        }
+                      : undefined
+                  }
+                />
+              ))}
 
               <Line
                 type="monotone"
