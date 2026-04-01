@@ -7,6 +7,7 @@ import type { Entry } from "./types";
 const App: React.FC = () => {
   const [db, setDb] = useState<any>(null);
   const [entries, setEntries] = useState<Entry[]>([]);
+  const [brlToGbp, setBrlToGbp] = useState<number>(0.14); // Default fallback rate
 
   // ⚙️ Initialize the database on load
   useEffect(() => {
@@ -16,6 +17,24 @@ const App: React.FC = () => {
       setEntries(getEntries(database));
     };
     setupDb();
+  }, []);
+
+  // 💱 Fetch current BRL to GBP exchange rate
+  useEffect(() => {
+    const fetchExchangeRate = async () => {
+      try {
+        const response = await fetch(
+          "https://api.exchangerate-api.com/v4/latest/BRL"
+        );
+        const data = await response.json();
+        if (data.rates && data.rates.GBP) {
+          setBrlToGbp(data.rates.GBP);
+        }
+      } catch (error) {
+        console.warn("Failed to fetch exchange rate, using default:", error);
+      }
+    };
+    fetchExchangeRate();
   }, []);
 
   // ➕ Add a new entry
@@ -50,6 +69,7 @@ const App: React.FC = () => {
           onDeleteEntry={handleDeleteEntry}
           db={db}
           onDatabaseImport={handleDatabaseImport}
+          brlToGbp={brlToGbp}
         />
       </div>
     </div>

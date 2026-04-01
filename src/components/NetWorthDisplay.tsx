@@ -17,6 +17,7 @@ interface Props {
   onDeleteEntry?: (idx: number) => void;
   db?: any; // Database reference
   onDatabaseImport?: (newDb: any) => void;
+  brlToGbp?: number; // Exchange rate from BRL to GBP
 }
 
 const NetWorthDisplay: React.FC<Props> = ({
@@ -24,6 +25,7 @@ const NetWorthDisplay: React.FC<Props> = ({
   onDeleteEntry,
   db,
   onDatabaseImport,
+  brlToGbp = 0.14,
 }) => {
   // 🧮 Group by year
   const groupedByYear = entries.reduce<Record<string, Entry[]>>((acc, entry) => {
@@ -51,6 +53,21 @@ const NetWorthDisplay: React.FC<Props> = ({
   const grandTotal = entries
     .filter((e) => e.month === latestMonthAll)
     .reduce((sum, e) => sum + e.amount, 0);
+
+  // 🧮 Previous month total for comparison
+  const allMonthsSorted = [...new Set(entries.map((e) => e.month))].sort().reverse();
+  const previousMonth = allMonthsSorted[1];
+  const previousTotal = previousMonth
+    ? entries
+        .filter((e) => e.month === previousMonth)
+        .reduce((sum, e) => sum + e.amount, 0)
+    : null;
+
+  const monthOverMonthDiff = previousTotal !== null ? grandTotal - previousTotal : null;
+  const monthOverMonthPct =
+    previousTotal !== null && previousTotal !== 0
+      ? ((grandTotal - previousTotal) / Math.abs(previousTotal)) * 100
+      : null;
 
   // 📊 Real data — totals per month
   const realChartData = [...new Set(entries.map((e) => e.month))]
@@ -183,9 +200,20 @@ const NetWorthDisplay: React.FC<Props> = ({
       <div className="relative overflow-hidden rounded-3xl bg-gradient-to-r from-blue-900 via-indigo-900 to-slate-900 text-white shadow-lg">
         <div className="relative p-8 text-center space-y-2">
           <span className="text-sm uppercase opacity-80">Current Net Worth</span>
-          <h2 className="text-6xl font-extrabold">
-            R${grandTotal.toLocaleString("pt-BR")}
-          </h2>
+          <div className="flex items-center justify-center gap-4">
+            <h2 className="text-6xl font-extrabold">
+              R${grandTotal.toLocaleString("pt-BR")}
+            </h2>
+            <div className="text-left">
+              <div className="text-2xl font-semibold text-indigo-200">
+                £{(grandTotal * brlToGbp).toLocaleString("en-GB", {
+                  minimumFractionDigits: 2,
+                  maximumFractionDigits: 2,
+                })}
+              </div>
+              <div className="text-xs text-slate-400">GBP</div>
+            </div>
+          </div>
           {latestMonthAll && (
             <span className="text-indigo-200 text-sm">
               as of{" "}
@@ -194,6 +222,37 @@ const NetWorthDisplay: React.FC<Props> = ({
                 year: "numeric",
               })}
             </span>
+          )}
+          {monthOverMonthDiff !== null && monthOverMonthPct !== null && (
+            <div className="mt-3 flex items-center justify-center gap-2 flex-wrap">
+              <span
+                className={`text-lg font-semibold ${
+                  monthOverMonthDiff >= 0 ? "text-green-400" : "text-red-400"
+                }`}
+              >
+                {monthOverMonthDiff >= 0 ? "▲" : "▼"}{" "}
+                R${Math.abs(monthOverMonthDiff).toLocaleString("pt-BR")}
+              </span>
+              <span
+                className={`text-sm font-medium ${
+                  monthOverMonthDiff >= 0 ? "text-green-300" : "text-red-300"
+                }`}
+              >
+                (£{Math.abs(monthOverMonthDiff * brlToGbp).toLocaleString("en-GB", {
+                  minimumFractionDigits: 2,
+                  maximumFractionDigits: 2,
+                })})
+              </span>
+              <span
+                className={`text-sm font-medium ${
+                  monthOverMonthDiff >= 0 ? "text-green-300" : "text-red-300"
+                }`}
+              >
+                {monthOverMonthDiff >= 0 ? "+" : ""}
+                {monthOverMonthPct.toFixed(2)}%
+              </span>
+              <span className="text-xs text-slate-400">vs previous month</span>
+            </div>
           )}
         </div>
       </div>
