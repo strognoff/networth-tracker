@@ -10,6 +10,8 @@ export interface ExchangeRates {
   USD: number;
 }
 
+export type RatesStatus = "loading" | "live" | "fallback";
+
 const DEFAULT_RATES: ExchangeRates = {
   GBP: 7.14,  // ~1 GBP = 7.14 BRL
   USD: 5.70,  // ~1 USD = 5.70 BRL
@@ -18,8 +20,9 @@ const DEFAULT_RATES: ExchangeRates = {
 const App: React.FC = () => {
   const [db, setDb] = useState<any>(null);
   const [entries, setEntries] = useState<Entry[]>([]);
-  const [brlToGbp, setBrlToGbp] = useState<number>(1 / DEFAULT_RATES.GBP);
   const [exchangeRates, setExchangeRates] = useState<ExchangeRates>(DEFAULT_RATES);
+  const [ratesStatus, setRatesStatus] = useState<RatesStatus>("loading");
+  const [ratesUpdatedAt, setRatesUpdatedAt] = useState<Date | null>(null);
 
   // ⚙️ Initialize the database on load
   useEffect(() => {
@@ -43,16 +46,19 @@ const App: React.FC = () => {
           const gbpRate = data.rates.GBP as number | undefined;
           const usdRate = data.rates.USD as number | undefined;
 
-          if (gbpRate) setBrlToGbp(gbpRate);
-
           // Rates returned are BRL→foreign, invert to get foreign→BRL
           setExchangeRates({
             GBP: gbpRate ? 1 / gbpRate : DEFAULT_RATES.GBP,
             USD: usdRate ? 1 / usdRate : DEFAULT_RATES.USD,
           });
+          setRatesStatus("live");
+          setRatesUpdatedAt(new Date());
+        } else {
+          setRatesStatus("fallback");
         }
       } catch (error) {
         console.warn("Failed to fetch exchange rate, using default:", error);
+        setRatesStatus("fallback");
       }
     };
     fetchExchangeRate();
@@ -94,7 +100,9 @@ const App: React.FC = () => {
           onDeleteEntry={handleDeleteEntry}
           db={db}
           onDatabaseImport={handleDatabaseImport}
-          brlToGbp={brlToGbp}
+          exchangeRates={exchangeRates}
+          ratesStatus={ratesStatus}
+          ratesUpdatedAt={ratesUpdatedAt}
         />
       </div>
     </div>

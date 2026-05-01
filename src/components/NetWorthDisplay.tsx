@@ -11,22 +11,31 @@ import {
   LineChart,
 } from "recharts";
 import type { Entry } from "../types";
+import type { ExchangeRates, RatesStatus } from "../App";
 
 interface Props {
   entries: Entry[];
   onDeleteEntry?: (idx: number) => void;
   db?: any; // Database reference
   onDatabaseImport?: (newDb: any) => void;
-  brlToGbp?: number; // Exchange rate from BRL to GBP
+  exchangeRates?: ExchangeRates;
+  ratesStatus?: RatesStatus;
+  ratesUpdatedAt?: Date | null;
 }
+
+const DEFAULT_RATES: ExchangeRates = { GBP: 7.14, USD: 5.70 };
 
 const NetWorthDisplay: React.FC<Props> = ({
   entries,
   onDeleteEntry,
   db,
   onDatabaseImport,
-  brlToGbp = 0.14,
+  exchangeRates = DEFAULT_RATES,
+  ratesStatus = "fallback",
+  ratesUpdatedAt = null,
 }) => {
+  const brlToGbp = 1 / exchangeRates.GBP;
+  const brlToUsd = 1 / exchangeRates.USD;
   // 🧮 Group by year
   const groupedByYear = entries.reduce<Record<string, Entry[]>>((acc, entry) => {
     const year = entry.month.split("-")[0];
@@ -209,10 +218,14 @@ const NetWorthDisplay: React.FC<Props> = ({
       <div className="relative overflow-hidden rounded-3xl bg-gradient-to-r from-blue-900 via-indigo-900 to-slate-900 text-white shadow-lg">
         <div className="relative p-8 text-center space-y-2">
           <span className="text-sm uppercase opacity-80">Current Net Worth</span>
-          <div className="flex items-center justify-center gap-4">
-            <h2 className="text-6xl font-extrabold">
-              R${grandTotal.toLocaleString("pt-BR")}
-            </h2>
+
+          {/* Primary BRL amount */}
+          <h2 className="text-6xl font-extrabold">
+            R${grandTotal.toLocaleString("pt-BR")}
+          </h2>
+
+          {/* GBP + USD conversions */}
+          <div className="flex items-center justify-center gap-6 mt-1">
             <div className="text-left">
               <div className="text-2xl font-semibold text-indigo-200">
                 £{(grandTotal * brlToGbp).toLocaleString("en-GB", {
@@ -222,7 +235,18 @@ const NetWorthDisplay: React.FC<Props> = ({
               </div>
               <div className="text-xs text-slate-400">GBP</div>
             </div>
+            <div className="text-slate-600 text-2xl font-light">|</div>
+            <div className="text-left">
+              <div className="text-2xl font-semibold text-emerald-300">
+                ${(grandTotal * brlToUsd).toLocaleString("en-US", {
+                  minimumFractionDigits: 2,
+                  maximumFractionDigits: 2,
+                })}
+              </div>
+              <div className="text-xs text-slate-400">USD</div>
+            </div>
           </div>
+
           {latestMonthAll && (
             <span className="text-indigo-200 text-sm">
               as of{" "}
@@ -232,6 +256,7 @@ const NetWorthDisplay: React.FC<Props> = ({
               })}
             </span>
           )}
+
           {monthOverMonthDiff !== null && monthOverMonthPct !== null && (
             <div className="mt-3 flex items-center justify-center gap-2 flex-wrap">
               <span
@@ -250,6 +275,9 @@ const NetWorthDisplay: React.FC<Props> = ({
                 (£{Math.abs(monthOverMonthDiff * brlToGbp).toLocaleString("en-GB", {
                   minimumFractionDigits: 2,
                   maximumFractionDigits: 2,
+                })} / ${Math.abs(monthOverMonthDiff * brlToUsd).toLocaleString("en-US", {
+                  minimumFractionDigits: 2,
+                  maximumFractionDigits: 2,
                 })})
               </span>
               <span
@@ -263,6 +291,40 @@ const NetWorthDisplay: React.FC<Props> = ({
               <span className="text-xs text-slate-400">vs previous month</span>
             </div>
           )}
+
+          {/* 💱 Exchange rates status badge */}
+          <div className="mt-4 flex flex-col items-center gap-1">
+            <div className="flex items-center gap-2">
+              {ratesStatus === "loading" && (
+                <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium bg-slate-700 text-slate-300">
+                  <span className="animate-pulse w-2 h-2 rounded-full bg-slate-400 inline-block" />
+                  Fetching live rates…
+                </span>
+              )}
+              {ratesStatus === "live" && (
+                <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium bg-emerald-900/60 text-emerald-300 border border-emerald-700">
+                  <span className="w-2 h-2 rounded-full bg-emerald-400 inline-block" />
+                  Live rates
+                  {ratesUpdatedAt && (
+                    <span className="text-emerald-500 ml-1">
+                      · updated {ratesUpdatedAt.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+                    </span>
+                  )}
+                </span>
+              )}
+              {ratesStatus === "fallback" && (
+                <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium bg-amber-900/60 text-amber-300 border border-amber-700">
+                  <span className="w-2 h-2 rounded-full bg-amber-400 inline-block" />
+                  Fallback rates (offline)
+                </span>
+              )}
+            </div>
+            <div className="text-xs text-slate-500 space-x-3">
+              <span>1 GBP = R${exchangeRates.GBP.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+              <span>·</span>
+              <span>1 USD = R${exchangeRates.USD.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+            </div>
+          </div>
         </div>
       </div>
 
