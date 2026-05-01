@@ -275,15 +275,35 @@ const NetWorthDisplay: React.FC<Props> = ({
           
           {/* Legend */}
           <div className="flex flex-wrap gap-3 mb-4">
-            {accounts.map((account, idx) => (
-              <div key={account} className="flex items-center gap-2">
-                <div
-                  className="w-4 h-4 rounded"
-                  style={{ backgroundColor: colorPalette[idx % colorPalette.length] }}
-                />
-                <span className="text-sm text-slate-300">{account}</span>
-              </div>
-            ))}
+            {accounts.map((account, idx) => {
+              // Compare the two most recent months that have data for this account
+              const accountMonths = realChartData
+                .filter((d) => (d[account] ?? 0) !== 0)
+                .slice(-2);
+              const prev = accountMonths.length === 2 ? (accountMonths[0][account] as number) : null;
+              const curr = accountMonths.length === 2 ? (accountMonths[1][account] as number) : null;
+              const trend = prev !== null && curr !== null ? curr - prev : null;
+
+              return (
+                <div key={account} className="flex items-center gap-1.5">
+                  <div
+                    className="w-4 h-4 rounded flex-shrink-0"
+                    style={{ backgroundColor: colorPalette[idx % colorPalette.length] }}
+                  />
+                  <span className="text-sm text-slate-300">{account}</span>
+                  {trend !== null && trend !== 0 && (
+                    <span
+                      className={`text-xs font-bold leading-none ${
+                        trend > 0 ? "text-green-400" : "text-red-400"
+                      }`}
+                      title={`${trend > 0 ? "+" : ""}R$${trend.toLocaleString("pt-BR")}`}
+                    >
+                      {trend > 0 ? "▲" : "▼"}
+                    </span>
+                  )}
+                </div>
+              );
+            })}
           </div>
 
           <ResponsiveContainer width="100%" height={300}>
@@ -451,19 +471,36 @@ const NetWorthDisplay: React.FC<Props> = ({
                                 e.amount === entry.amount &&
                                 e.month === entry.month
                             );
+                            const currencySymbol =
+                              entry.originalCurrency === "GBP"
+                                ? "£"
+                                : entry.originalCurrency === "USD"
+                                ? "$"
+                                : null;
+
                             return (
                               <li
                                 key={`${month}-${idx}`}
-                                className="flex justify-between text-slate-300 py-1"
+                                className="flex justify-between items-center text-slate-300 py-1 gap-2"
                               >
                                 <span>{entry.account}</span>
-                                <span className="text-indigo-400 font-semibold">
+                                <span className="text-indigo-400 font-semibold text-right">
                                   R${entry.amount.toLocaleString("pt-BR")}
+                                  {entry.originalCurrency && entry.originalAmount !== undefined && (
+                                    <span className="ml-2 text-xs font-normal text-slate-400 bg-slate-700 rounded px-1.5 py-0.5">
+                                      {currencySymbol}
+                                      {entry.originalAmount.toLocaleString("en", {
+                                        minimumFractionDigits: 2,
+                                        maximumFractionDigits: 2,
+                                      })}{" "}
+                                      {entry.originalCurrency}
+                                    </span>
+                                  )}
                                 </span>
                                 {onDeleteEntry && (
                                   <button
                                     onClick={() => onDeleteEntry(index)}
-                                    className="text-red-400 hover:text-red-600 text-xs"
+                                    className="text-red-400 hover:text-red-600 text-xs flex-shrink-0"
                                   >
                                     ✕
                                   </button>

@@ -1,28 +1,64 @@
 import React, { useState, useMemo } from "react";
-import type { Entry } from "../types";
+import type { Entry, Currency } from "../types";
+import type { ExchangeRates } from "../App";
 
 interface Props {
   onAddEntry: (entry: Entry) => void;
   entries?: Entry[];
+  exchangeRates: ExchangeRates;
 }
 
-const AddEntryForm: React.FC<Props> = ({ onAddEntry, entries = [] }) => {
+
+const AddEntryForm: React.FC<Props> = ({
+  onAddEntry,
+  entries = [],
+  exchangeRates,
+}) => {
   const [account, setAccount] = useState("");
   const [amount, setAmount] = useState<number | "">("");
-  const [month, setMonth] = useState("");
+  const [currency, setCurrency] = useState<Currency>("BRL");
+  const [month, setMonth] = useState(() => {
+    const now = new Date();
+    return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
+  });
 
   const accountOptions = useMemo(
     () => Array.from(new Set(entries.map((e) => e.account))).sort(),
     [entries]
   );
 
+  /** Convert the entered amount to BRL using live rates */
+  const toBRL = (value: number, cur: Currency): number => {
+    if (cur === "BRL") return value;
+    return value * exchangeRates[cur];
+  };
+
+  /** Preview of converted BRL amount shown beneath the input */
+  const brlPreview =
+    amount !== "" && currency !== "BRL"
+      ? toBRL(Number(amount), currency)
+      : null;
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!account || !month || amount === "") return;
-    onAddEntry({ account, amount: Number(amount), month });
+
+    const numericAmount = Number(amount);
+    const amountInBRL = toBRL(numericAmount, currency);
+
+    onAddEntry({
+      account,
+      amount: amountInBRL,
+      month,
+      originalCurrency: currency !== "BRL" ? currency : undefined,
+      originalAmount: currency !== "BRL" ? numericAmount : undefined,
+    });
+
     setAccount("");
     setAmount("");
-    setMonth("");
+    setCurrency("BRL");
+    const now = new Date();
+    setMonth(`${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`);
   };
 
   /** Safer CSV parser for quoted cells */
@@ -107,25 +143,56 @@ const AddEntryForm: React.FC<Props> = ({ onAddEntry, entries = [] }) => {
         </datalist>
       </div>
 
-      {/* Amount */}
+      {/* Amount + Currency */}
       <div>
-        <label
-          htmlFor="amount"
-          className="block text-sm font-semibold text-gray-700 mb-1"
-        >
+        <label className="block text-sm font-semibold text-gray-700 mb-1">
           Amount
         </label>
-        <input
-          id="amount"
-          type="number"
-          placeholder="0.00"
-          value={amount}
-          onChange={(e) =>
-            setAmount(e.target.value === "" ? "" : Number(e.target.value))
-          }
-          required
-          className="w-full rounded-lg border border-gray-300 p-2.5 text-gray-800 bg-gray-50 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition"
-        />
+        <div className="flex gap-2">
+          {/* Currency selector */}
+          <select
+            value={currency}
+            onChange={(e) => setCurrency(e.target.value as Currency)}
+            className="rounded-lg border border-gray-300 p-2.5 text-gray-800 bg-gray-50 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition font-semibold"
+          >
+            <option value="BRL">R$ BRL</option>
+            <option value="GBP">£ GBP</option>
+            <option value="USD">$ USD</option>
+          </select>
+
+          {/* Amount input */}
+          <input
+            id="amount"
+            type="number"
+            placeholder="0.00"
+            value={amount}
+            onChange={(e) =>
+              setAmount(e.target.value === "" ? "" : Number(e.target.value))
+            }
+            required
+            className="flex-1 rounded-lg border border-gray-300 p-2.5 text-gray-800 bg-gray-50 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition"
+          />
+        </div>
+
+        {/* BRL conversion preview */}
+        {brlPreview !== null && (
+          <p className="mt-1.5 text-sm text-indigo-700 font-medium">
+            ≈ R${" "}
+            {brlPreview.toLocaleString("pt-BR", {
+              minimumFractionDigits: 2,
+              maximumFractionDigits: 2,
+            })}{" "}
+            BRL
+            <span className="ml-2 text-xs text-gray-500 font-normal">
+              (1 {currency} = R${" "}
+              {exchangeRates[currency as Exclude<Currency, "BRL">].toLocaleString("pt-BR", {
+                minimumFractionDigits: 2,
+                maximumFractionDigits: 2,
+              })}
+              )
+            </span>
+          </p>
+        )}
       </div>
 
       {/* Month */}
@@ -163,12 +230,12 @@ const AddEntryForm: React.FC<Props> = ({ onAddEntry, entries = [] }) => {
           📤 Import from CSV
         </label>
         <input
-  id="csv-upload"
-  type="file"
-  accept=".csv"
-  onChange={handleCSVImport}
-  className="w-full text-black file:mr-4 file:py-2.5 file:px-4 file:border-0 file:text-sm file:font-semibold file:bg-gradient-to-r file:from-indigo-600 file:to-purple-600 file:text-white hover:file:from-indigo-700 hover:file:to-purple-700 rounded-lg cursor-pointer transition"
-/>
+          id="csv-upload"
+          type="file"
+          accept=".csv"
+          onChange={handleCSVImport}
+          className="w-full text-black file:mr-4 file:py-2.5 file:px-4 file:border-0 file:text-sm file:font-semibold file:bg-gradient-to-r file:from-indigo-600 file:to-purple-600 file:text-white hover:file:from-indigo-700 hover:file:to-purple-700 rounded-lg cursor-pointer transition"
+        />
       </div>
     </form>
   );

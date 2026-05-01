@@ -38,8 +38,18 @@ export async function initDatabase(): Promise<Database> {
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     month TEXT NOT NULL,
     account TEXT NOT NULL,
-    amount REAL NOT NULL
+    amount REAL NOT NULL,
+    original_currency TEXT,
+    original_amount REAL
   );`);
+
+  // Migrate existing databases that lack the new columns
+  try {
+    db.run(`ALTER TABLE entries ADD COLUMN original_currency TEXT;`);
+  } catch (_) { /* column already exists */ }
+  try {
+    db.run(`ALTER TABLE entries ADD COLUMN original_amount REAL;`);
+  } catch (_) { /* column already exists */ }
 
   return db;
 }
@@ -51,22 +61,31 @@ export function saveDatabase(db: Database): void {
 }
 
 export function getEntries(db: Database): Entry[] {
-  const res = db.exec("SELECT month, account, amount FROM entries ORDER BY month DESC;");
+  const res = db.exec(
+    "SELECT month, account, amount, original_currency, original_amount FROM entries ORDER BY month DESC;"
+  );
   if (res.length === 0) return [];
   const values = res[0].values;
-  return values.map(([month, account, amount]) => ({
+  return values.map(([month, account, amount, originalCurrency, originalAmount]) => ({
     month: month as string,
     account: account as string,
     amount: amount as number,
+    originalCurrency: originalCurrency != null ? (originalCurrency as import("../types").Currency) : undefined,
+    originalAmount: (originalAmount as number | null) ?? undefined,
   }));
 }
 
 export function addEntry(db: Database, entry: Entry): void {
-  db.run("INSERT INTO entries (month, account, amount) VALUES (?, ?, ?);", [
-    entry.month,
-    entry.account,
-    entry.amount,
-  ]);
+  db.run(
+    "INSERT INTO entries (month, account, amount, original_currency, original_amount) VALUES (?, ?, ?, ?, ?);",
+    [
+      entry.month,
+      entry.account,
+      entry.amount,
+      entry.originalCurrency ?? null,
+      entry.originalAmount ?? null,
+    ]
+  );
   saveDatabase(db);
 }
 
