@@ -34,22 +34,25 @@ const App: React.FC = () => {
     setupDb();
   }, []);
 
-  // 💱 Fetch current exchange rates (BRL as base → derive toBRL rates)
+  // 💱 Fetch current exchange rates via @fawazahmed0/currency-api (jsDelivr CDN)
+  // Source: https://github.com/fawazahmed0/exchange-api — free, MIT, no API key required.
+  // Response shape: { date, brl: { gbp: <1 BRL in GBP>, usd: <1 BRL in USD>, ... } }
+  // Invert each value to get the foreign→BRL rate we need.
   useEffect(() => {
     const fetchExchangeRate = async () => {
       try {
         const response = await fetch(
-          "https://api.exchangerate-api.com/v4/latest/BRL"
+          "https://cdn.jsdelivr.net/npm/@fawazahmed0/currency-api@latest/v1/currencies/brl.min.json"
         );
         const data = await response.json();
-        if (data.rates) {
-          const gbpRate = data.rates.GBP as number | undefined;
-          const usdRate = data.rates.USD as number | undefined;
+        if (data.brl) {
+          const brlToGbp = data.brl.gbp as number | undefined;
+          const brlToUsd = data.brl.usd as number | undefined;
 
-          // Rates returned are BRL→foreign, invert to get foreign→BRL
+          // Values are "1 BRL = X foreign", so invert to get "1 foreign = X BRL"
           setExchangeRates({
-            GBP: gbpRate ? 1 / gbpRate : DEFAULT_RATES.GBP,
-            USD: usdRate ? 1 / usdRate : DEFAULT_RATES.USD,
+            GBP: brlToGbp ? 1 / brlToGbp : DEFAULT_RATES.GBP,
+            USD: brlToUsd ? 1 / brlToUsd : DEFAULT_RATES.USD,
           });
           setRatesStatus("live");
           setRatesUpdatedAt(new Date());
